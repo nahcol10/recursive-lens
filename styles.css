@@ -637,6 +637,12 @@ body.dark-mode .tree-node.completed {
     stroke-width: 4px;
     stroke-linecap: round;
     stroke-linejoin: round;
+    animation: edgeLabelIn 0.25s ease-out;
+}
+
+@keyframes edgeLabelIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
 }
 
 .edge-label.active {

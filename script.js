@@ -8,6 +8,7 @@ let isPlaying = false;
 let playInterval = null;
 let animationSpeed = 800;
 let treeRoot = null;
+let treeNodeMap = {};
 let executionStartTime = 0;
 
 // ============================================================
@@ -403,6 +404,12 @@ function assignPositionsBottomUp(node, leftEdge) {
 // ============================================================
 // Rendering
 // ============================================================
+// Build a flat id→node map so updateVisualization can read positions
+function buildNodeMap(node) {
+    treeNodeMap[node.id] = node;
+    node.children.forEach(function (child) { buildNodeMap(child); });
+}
+
 function renderTree(root) {
     var container = document.getElementById('treeContainer');
     container.innerHTML = '';
@@ -419,6 +426,9 @@ function renderTree(root) {
     }
     // Render nodes first so _halfW/_halfH are computed
     renderNodes(container, root);
+    // Build flat lookup map for dynamic label injection during animation
+    treeNodeMap = {};
+    buildNodeMap(root);
     // Then render edges using computed node sizes (inserted before nodes so nodes draw on top)
     var firstChild = container.firstChild;
     var edgeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
@@ -458,23 +468,6 @@ function renderEdges(container, node) {
         path.setAttribute('id', 'edge-' + node.id + '-' + child.id);
         container.appendChild(path);
 
-        if (child.returnValue !== null && document.getElementById('returnValueToggle').classList.contains('active')) {
-            // Position label with offset to avoid overlapping the line
-            var labelX = (sx + ex) / 2 + (ex > sx ? 12 : -12);
-            var labelY = my - 8;
-            var text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', labelX);
-            text.setAttribute('y', labelY);
-            text.setAttribute('class', 'edge-label');
-            text.setAttribute('id', 'label-' + node.id + '-' + child.id);
-            // Clean and show return value
-            var retVal = String(child.returnValue).replace(/^\(/, '').replace(/\)$/, '').replace(/,\s*$/, '');
-            text.textContent = retVal;
-            var retTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            retTitle.textContent = 'Return: ' + child.returnValue;
-            text.appendChild(retTitle);
-            container.appendChild(text);
-        }
         renderEdges(container, child);
     });
 }
@@ -566,10 +559,6 @@ function updateVisualization() {
     document.querySelectorAll('.edge').forEach(function (e) {
         e.classList.remove('active', 'return');
     });
-    document.querySelectorAll('.edge-label').forEach(function (l) {
-        l.classList.remove('active');
-    });
-
     var activeCalls = new Set();
     var completedCalls = new Set();
     for (var i = 0; i <= currentStep; i++) {
@@ -586,6 +575,44 @@ function updateVisualization() {
         var nd = document.getElementById('node-' + id);
         if (nd) nd.classList.add('completed');
     });
+
+    // Dynamically manage return value labels:
+    // - strip .active from all existing labels
+    // - remove labels whose node is no longer in completedCalls (step backward)
+    // - create labels for newly completed nodes (not yet in the DOM)
+    var edgeGroup = document.querySelector('.edge-group');
+    var showReturnValues = document.getElementById('returnValueToggle').classList.contains('active');
+    document.querySelectorAll('.edge-label').forEach(function (lbl) {
+        lbl.classList.remove('active');
+        var parts = lbl.id.split('-');
+        var childId = parseInt(parts[parts.length - 1]);
+        if (!completedCalls.has(childId)) lbl.remove();
+    });
+    if (showReturnValues && edgeGroup) {
+        completedCalls.forEach(function (id) {
+            var childNode = treeNodeMap[id];
+            if (!childNode || childNode.parent === null || !treeNodeMap[childNode.parent]) return;
+            if (document.getElementById('label-' + childNode.parent + '-' + id)) return; // already in DOM
+            var parentNode = treeNodeMap[childNode.parent];
+            var sy = parentNode.y + (parentNode._halfH || 22);
+            var ey = childNode.y - (childNode._halfH || 22);
+            var sx = parentNode.x, ex = childNode.x;
+            var my = (sy + ey) / 2;
+            var labelX = (sx + ex) / 2 + (ex > sx ? 12 : -12);
+            var labelY = my - 8;
+            var lbl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            lbl.setAttribute('x', labelX);
+            lbl.setAttribute('y', labelY);
+            lbl.setAttribute('class', 'edge-label');
+            lbl.setAttribute('id', 'label-' + childNode.parent + '-' + id);
+            var retVal = String(childNode.returnValue).replace(/^\(/, '').replace(/\)$/, '').replace(/,\s*$/, '');
+            lbl.textContent = retVal;
+            var retTitle = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+            retTitle.textContent = 'Return: ' + childNode.returnValue;
+            lbl.appendChild(retTitle);
+            edgeGroup.appendChild(lbl);
+        });
+    }
 
     if (step.type === 'call') {
         var n1 = document.getElementById('node-' + step.id);
