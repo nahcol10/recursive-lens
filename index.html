@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Recursion Visualizer Pro</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Loading Python Runtime (Pyodide)...</div>
+    </div>
+
+    <!-- Error Modal -->
+    <div class="error-modal" id="errorModal">
+        <div class="error-content">
+            <div class="error-title">&#9888;&#65039; Execution Error</div>
+            <div class="error-message" id="errorMessage"></div>
+            <button class="error-btn" onclick="closeErrorModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Help / Instructions Modal -->
+    <div class="help-modal" id="helpModal">
+        <div class="help-content">
+            <div class="help-header">
+                <h2>How to Use the Recursion Visualizer</h2>
+                <span class="help-close" onclick="closeHelp()">&times;</span>
+            </div>
+            <div class="help-body">
+
+                <div class="help-section">
+                    <h3>1. Function Name (REQUIRED)</h3>
+                    <p>Your recursive function <strong>must be named <code>fn</code></strong>. The tracer only captures calls to <code>fn</code>.</p>
+<pre class="help-code">def fn(n):        # Correct - will be traced
+    ...
+
+def solve(n):    # WRONG - will NOT be traced
+    ...</pre>
+                </div>
+
+                <div class="help-section">
+                    <h3>2. Global Variables</h3>
+                    <p>Variables your function needs go in the <strong>Global Variables</strong> panel. Each row has a <strong>name</strong> and a <strong>value</strong> (any valid Python expression).</p>
+                    <table class="help-table">
+                        <thead><tr><th>Name</th><th>Value (Python expression)</th></tr></thead>
+                        <tbody>
+                            <tr><td><code>arr</code></td><td><code>[1, 2, 3]</code></td></tr>
+                            <tr><td><code>target</code></td><td><code>10</code></td></tr>
+                            <tr><td><code>s</code></td><td><code>'hello'</code></td></tr>
+                            <tr><td><code>grid</code></td><td><code>[[1,2],[3,4]]</code></td></tr>
+                        </tbody>
+                    </table>
+                    <p><strong>Tip:</strong> Use single quotes <code>'text'</code> for strings. Click <strong>+ Add Variable</strong> to add more rows. Click <strong>&times;</strong> to remove one.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>3. Function Call</h3>
+                    <p>In the input box at the bottom-left, type how to invoke your function:</p>
+<pre class="help-code">fn(0, [])           # two arguments
+fn(5)               # one argument
+fn(0, 0)            # two integers
+fn(0, set(), set()) # with sets</pre>
+                    <p>This must match your function's parameters exactly.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>4. Indentation (IMPORTANT for Python)</h3>
+                    <p>Python requires consistent indentation. The editor uses <strong>4 spaces</strong> per level:</p>
+                    <ul>
+                        <li><strong>Tab</strong> key &rarr; inserts 4 spaces</li>
+                        <li><strong>Shift+Tab</strong> &rarr; removes 4 leading spaces (dedent)</li>
+                        <li><strong>Enter</strong> &rarr; auto-indents to match the previous line</li>
+                        <li><strong>Format</strong> button &rarr; converts all tabs to 4 spaces and normalizes indentation</li>
+                    </ul>
+<pre class="help-code">def fn(n):
+    if n &lt;= 0:           # 4 spaces (1 level)
+        return 0         # 8 spaces (2 levels)
+    return n + fn(n-1)   # 4 spaces (1 level)</pre>
+                    <p class="help-warning">&#9888;&#65039; <strong>Never mix tabs and spaces.</strong> The Tab key and Format button always use spaces.</p>
+                </div>
+
+                <div class="help-section">
+                    <h3>5. Custom Recursive Function Examples</h3>
+
+                    <p><strong>Example A &mdash; Sum of digits:</strong></p>
+<pre class="help-code">Global variables: (none needed)
+Function call:    fn(12345)
+
+def fn(n):
+    if n == 0:
+        return 0
+    return (n % 10) + fn(n // 10)</pre>
+
+                    <p><strong>Example B &mdash; Array sum:</strong></p>
+<pre class="help-code">Global variables: arr = [3, 7, 1, 9]
+Function call:    fn(0)
+
+def fn(i):
+    if i == len(arr):
+        return 0
+    return arr[i] + fn(i + 1)</pre>
+
+                    <p><strong>Example C &mdash; Power function:</strong></p>
+<pre class="help-code">Global variables: (none needed)
+Function call:    fn(2, 10)
+
+def fn(base, exp):
+    if exp == 0:
+        return 1
+    if exp % 2 == 0:
+        half = fn(base, exp // 2)
+        return half * half
+    return base * fn(base, exp - 1)</pre>
+
+                    <p><strong>Example D &mdash; Tower of Hanoi:</strong></p>
+<pre class="help-code">Global variables: (none needed)
+Function call:    fn(3, 'A', 'C', 'B')
+
+def fn(n, src, dst, aux):
+    if n == 0:
+        return 0
+    left = fn(n-1, src, aux, dst)
+    print(f"Move disk {n}: {src} -> {dst}")
+    right = fn(n-1, aux, dst, src)
+    return left + 1 + right</pre>
+                </div>
+
+                <div class="help-section">
+                    <h3>6. Tips &amp; Limits</h3>
+                    <ul>
+                        <li>Keep total recursive calls small (&le; 80) for a clear tree</li>
+                        <li>Use <code>print()</code> freely &mdash; output appears in the console panel (toggle it on)</li>
+                        <li><strong>Ctrl+Enter</strong> inside the editor runs the code</li>
+                        <li>The speed slider controls animation speed (left = faster)</li>
+                        <li>Only calls to <code>fn(...)</code> are traced &mdash; helper sub-functions won't appear in the tree</li>
+                        <li>Use <strong>Export / Import</strong> links in the footer to save your work</li>
+                    </ul>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Left Panel -->
+        <div class="left-panel">
+            <!-- Templates -->
+            <div class="panel-section">
+                <h2>
+                    Pre-defined templates
+                    <button class="help-btn" onclick="showHelp()" title="Open usage guide">? Help</button>
+                </h2>
+                <select class="template-select" id="templateSelect">
+                    <option value="subset">Subset Generator</option>
+                    <option value="permutation">Permutations</option>
+                    <option value="fibonacci">Fibonacci</option>
+                    <option value="nqueens">N-Queens</option>
+                    <option value="knapsack">0/1 Knapsack</option>
+                    <option value="lcs">Longest Common Subsequence</option>
+                    <option value="coin_change">Coin Change</option>
+                    <option value="custom">Custom Function</option>
+                </select>
+            </div>
+
+            <!-- Global Variables -->
+            <div class="panel-section">
+                <h2>
+                    Global variables
+                    <span class="help-icon" onclick="showHelp()" title="Click for usage guide">?</span>
+                </h2>
+                <div id="variablesContainer"></div>
+                <div class="var-btn-row">
+                    <button class="add-var-btn" onclick="addVariable()">+ Add Variable</button>
+                    <button class="add-var-btn paste-var-btn" onclick="toggleBulkPaste()">Paste Variables</button>
+                </div>
+                <div id="bulkPasteArea" class="bulk-paste-area" style="display:none;">
+                    <textarea id="bulkPasteInput" class="bulk-paste-input" rows="5" placeholder="Paste variables, one per line:
+coins = [1, 2, 5]
+memory = {}
+target = 6"></textarea>
+                    <div class="bulk-paste-actions">
+                        <button class="add-var-btn" onclick="applyBulkPaste()">Apply</button>
+                        <button class="add-var-btn paste-var-btn" onclick="toggleBulkPaste()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recursive Function -->
+            <div class="panel-section">
+                <div class="code-header">
+                    <h2>Recursive function</h2>
+                    <div class="code-actions">
+                        <button class="action-btn" onclick="formatCode()">Format</button>
+                        <button class="action-btn" onclick="copyCode()">Copy</button>
+                        <button class="action-btn" onclick="clearCode()">Clear</button>
+                    </div>
+                    <span class="language-badge">python</span>
+                </div>
+                <textarea class="code-editor" id="codeEditor" spellcheck="false" placeholder="def fn(...):
+    # Your recursive function here
+    pass"></textarea>
+                <div class="code-hints">
+                    <strong>Tips:</strong> Function must be named <code>fn</code>.
+                    Press <strong>Tab</strong> for 4-space indent.
+                    Press <strong>Ctrl+Enter</strong> to run.
+                    <a href="#" onclick="showHelp(); return false;">Full Guide</a>
+                </div>
+            </div>
+
+            <!-- Options -->
+            <div class="panel-section">
+                <h2>Options</h2>
+                <div class="option-row">
+                    <span class="option-label">Step-by-step animation</span>
+                    <div class="toggle active" id="animationToggle"></div>
+                </div>
+                <div class="option-row">
+                    <span class="option-label">Show return values</span>
+                    <div class="toggle active" id="returnValueToggle"></div>
+                </div>
+                <div class="option-row">
+                    <span class="option-label">Dark mode</span>
+                    <div class="toggle" id="darkToggle"></div>
+                </div>
+                <div class="option-row">
+                    <span class="option-label">Show output console</span>
+                    <div class="toggle" id="consoleToggle"></div>
+                </div>
+            </div>
+
+            <!-- Run -->
+            <div class="panel-section">
+                <div class="run-section">
+                    <input type="text" class="function-input" id="functionCall" value="fn(0, [])" placeholder="e.g., fn(0, [])">
+                    <button class="run-btn" id="runBtn" disabled>
+                        <span>&#9654;</span> Run
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <div class="right-panel">
+            <div class="viz-header">
+                <button class="nav-btn" id="resetBtn" disabled title="Reset">&#10226;</button>
+                <button class="nav-btn" id="prevBtn" disabled title="Previous">&#9664;</button>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <button class="nav-btn" id="nextBtn" disabled title="Next">&#9654;</button>
+                <button class="nav-btn" id="expandBtn" title="Expand/Collapse">&#9974;</button>
+                <button class="nav-btn" id="zoomResetBtn" title="Reset zoom/pan">&#8634;</button>
+            </div>
+
+            <div class="stats-bar">
+                <div class="stat-item">
+                    <span class="stat-value" id="statCalls">0</span>
+                    <span class="stat-label">Total Calls</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statDepth">0</span>
+                    <span class="stat-label">Max Depth</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statStep">0/0</span>
+                    <span class="stat-label">Current Step</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value" id="statTime">0ms</span>
+                    <span class="stat-label">Execution Time</span>
+                </div>
+            </div>
+
+            <div class="status-text" id="statusText"></div>
+
+            <div class="viz-canvas" id="vizCanvas">
+                <svg id="treeSvg" width="100%" height="100%">
+                    <defs>
+                        <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#959da5" />
+                        </marker>
+                        <marker id="arrowhead-active" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#0366d6" />
+                        </marker>
+                        <marker id="arrowhead-return" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <polygon points="0 0, 10 3, 0 6" fill="#d4a72c" />
+                        </marker>
+                    </defs>
+                    <g id="treeContainer" transform="translate(50, 50)"></g>
+                </svg>
+            </div>
+
+            <!-- Output Console -->
+            <div class="output-console" id="outputConsole">
+                <div class="console-header">
+                    <span>Output</span>
+                    <span class="console-close" onclick="toggleConsole()">&times;</span>
+                </div>
+                <div class="console-content" id="consoleContent"></div>
+            </div>
+
+            <div class="controls-overlay">
+                <button class="control-btn" id="stepBackBtn" disabled title="Step Back">&#9198;</button>
+                <button class="control-btn primary" id="playPauseBtn" disabled title="Play/Pause">&#9654;</button>
+                <button class="control-btn" id="stepForwardBtn" disabled title="Step Forward">&#9197;</button>
+                <div class="speed-control">
+                    <span class="speed-label">Speed</span>
+                    <input type="range" class="speed-slider" id="speedSlider" min="100" max="2000" value="800">
+                </div>
+            </div>
+
+            <div class="footer">
+                Made with &#9829; &bull; <a href="#" onclick="exportCode(); return false;">Export Code</a> &bull; <a href="#" onclick="importCode(); return false;">Import</a>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
