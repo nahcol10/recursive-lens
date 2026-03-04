@@ -414,10 +414,162 @@ fn(0, [])
 
 function showConvertModal() {
     document.getElementById('convertModal').classList.add('visible');
+    updateConvertStepper(1); // reset stepper on open
+}
+
+function updateConvertStepper(activeStep) {
+    var steps = [
+        document.getElementById('step1indicator'),
+        document.getElementById('step2indicator'),
+        document.getElementById('step3indicator')
+    ];
+    var lines = [
+        document.getElementById('stepperLine1'),
+        document.getElementById('stepperLine2')
+    ];
+    for (var i = 0; i < steps.length; i++) {
+        steps[i].classList.remove('active', 'done');
+        if (i + 1 < activeStep) steps[i].classList.add('done');
+        else if (i + 1 === activeStep) steps[i].classList.add('active');
+    }
+    for (var j = 0; j < lines.length; j++) {
+        lines[j].classList.remove('done');
+        if (j + 1 < activeStep) lines[j].classList.add('done');
+    }
 }
 
 function closeConvertModal() {
     document.getElementById('convertModal').classList.remove('visible');
+}
+
+// Convert example data for "Load this example" buttons
+var convertExamples = {
+    permutation_convert: {
+        variables: [
+            { name: 'arr', value: '[1, 2, 3]' },
+            { name: 'result', value: '[]' }
+        ],
+        code: 'def fn(asf):\n    if len(asf) == len(arr):\n        result.append(asf[:])\n        return\n    for el in arr:\n        if el not in asf:\n            asf.append(el)\n            fn(asf)\n            asf.pop()',
+        call: 'fn([])'
+    },
+    lcs_convert: {
+        variables: [
+            { name: 'text1', value: "'abcde'" },
+            { name: 'text2', value: "'ace'" }
+        ],
+        code: 'def fn(i, j):\n    if i == len(text1) or j == len(text2):\n        return 0\n    if text1[i] == text2[j]:\n        return 1 + fn(i+1, j+1)\n    return max(fn(i+1, j), fn(i, j+1))',
+        call: 'fn(0, 0)'
+    },
+    subsets_convert: {
+        variables: [
+            { name: 'nums', value: '[1, 2, 3]' },
+            { name: 'result', value: '[]' }
+        ],
+        code: 'def fn(start, current):\n    result.append(current[:])\n    for i in range(start, len(nums)):\n        current.append(nums[i])\n        fn(i + 1, current)\n        current.pop()',
+        call: 'fn(0, [])'
+    }
+};
+
+function loadConvertExample(key) {
+    var ex = convertExamples[key];
+    if (!ex) return;
+    loadVariables(ex.variables);
+    document.getElementById('codeEditor').value = ex.code;
+    document.getElementById('functionCall').value = ex.call;
+    document.getElementById('templateSelect').value = 'custom';
+    closeConvertModal();
+    addLog('Loaded convert example into editor', 'success');
+}
+
+// Parse LLM output and import into the app
+function importConvertResult() {
+    var raw = document.getElementById('convertResultInput').value.trim();
+    var status = document.getElementById('convertImportStatus');
+    if (!raw) {
+        status.textContent = 'Please paste the AI response first.';
+        status.className = 'convert-import-status error';
+        return;
+    }
+
+    // Advance stepper to step 3
+    updateConvertStepper(3);
+
+    var variables = [];
+    var code = '';
+    var call = '';
+
+    // Try to extract Global Variables section
+    var varMatch = raw.match(/[Gg]lobal\s+[Vv]ariable[s]?[^:]*:\s*(?:```[^\n]*\n)?([\s\S]*?)(?:```|(?=\n\s*(?:\*\*)?[Rr]ecursive|$))/);
+    if (varMatch) {
+        var varBlock = varMatch[1].trim();
+        varBlock.split('\n').forEach(function (line) {
+            line = line.trim();
+            if (!line || line.startsWith('#') || line.startsWith('```')) return;
+            var eqIdx = line.indexOf('=');
+            if (eqIdx > 0) {
+                var name = line.substring(0, eqIdx).trim();
+                var value = line.substring(eqIdx + 1).trim();
+                if (name && value && /^[a-zA-Z_]\w*$/.test(name)) {
+                    variables.push({ name: name, value: value });
+                }
+            }
+        });
+    }
+
+    // Try to extract Recursive Function section
+    var fnMatch = raw.match(/[Rr]ecursive\s+[Ff]unction[^:]*:\s*(?:```[^\n]*\n)?([\s\S]*?)(?:```|(?=\n\s*(?:\*\*)?[Ff]unction\s+[Cc]all))/);
+    if (fnMatch) {
+        code = fnMatch[1].trim();
+        // Remove leading/trailing ``` if present
+        code = code.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '').trim();
+    }
+
+    // Try to extract Function Call section
+    var callMatch = raw.match(/[Ff]unction\s+[Cc]all[^:]*:\s*(?:```[^\n]*\n)?([\s\S]*?)(?:```|$)/);
+    if (callMatch) {
+        call = callMatch[1].trim();
+        call = call.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '').trim();
+        // Take only the first non-empty line (the actual call)
+        var callLines = call.split('\n').filter(function (l) { return l.trim(); });
+        call = callLines.length > 0 ? callLines[0].trim() : '';
+    }
+
+    // Validate what we found
+    var imported = [];
+    if (variables.length > 0) {
+        loadVariables(variables);
+        imported.push(variables.length + ' variable(s)');
+    }
+    if (code && /def\s+fn\s*\(/.test(code)) {
+        document.getElementById('codeEditor').value = code;
+        imported.push('function');
+    }
+    if (call && /^fn\s*\(/.test(call)) {
+        document.getElementById('functionCall').value = call;
+        imported.push('function call');
+    }
+
+    if (imported.length === 0) {
+        status.textContent = 'Could not parse the response. Make sure it contains "Global Variables:", "Recursive Function:", and "Function Call:" sections.';
+        status.className = 'convert-import-status error';
+        return;
+    }
+
+    document.getElementById('templateSelect').value = 'custom';
+    status.textContent = 'Imported: ' + imported.join(', ') + '. Ready to run!';
+    status.className = 'convert-import-status success';
+    addLog('Imported from AI response: ' + imported.join(', '), 'success');
+
+    // Auto-close after a short delay
+    setTimeout(function () {
+        closeConvertModal();
+    }, 1500);
+}
+
+function clearConvertResult() {
+    document.getElementById('convertResultInput').value = '';
+    document.getElementById('convertImportStatus').textContent = '';
+    document.getElementById('convertImportStatus').className = 'convert-import-status';
 }
 
 function copyConvertPrompt() {
@@ -425,6 +577,8 @@ function copyConvertPrompt() {
     function onCopied() {
         btn.textContent = '\u2713 Copied!';
         btn.classList.add('copied');
+        // Advance stepper: mark step 1 done, step 2 active
+        updateConvertStepper(2);
         setTimeout(function () {
             btn.innerHTML = '&#128203;&nbsp; Copy LLM Prompt to Clipboard';
             btn.classList.remove('copied');
@@ -709,7 +863,8 @@ function renderEdges(container, node) {
 function cleanArgs(raw) {
     var s = raw.replace(/^\(/, '').replace(/\)$/, '');  // strip outer parens
     s = s.replace(/,\s*$/, '');                          // strip trailing comma
-    s = s.replace(/'/g, '');                              // strip single quotes
+    // Only strip quotes around simple single-word string args, not inside expressions
+    s = s.replace(/^'([^']*)'$/, '$1');                   // strip quotes if entire arg is a quoted string
     s = s.replace(/\s{2,}/g, ' ');                        // collapse whitespace
     s = s.trim();
     return s || 'fn()';
@@ -918,7 +1073,9 @@ async function runVisualization() {
 
         if (data.output) {
             data.output.split('\n').filter(function (l) { return l.trim(); }).forEach(function (line) {
-                addLog(line, (line.indexOf('Error') !== -1) ? 'error' : 'success');
+                // Only mark as error if the line looks like a Python exception
+                var isErr = /^(Error|\w*(Error|Exception)):/.test(line.trim());
+                addLog(line, isErr ? 'error' : '');
             });
         }
 
@@ -991,6 +1148,8 @@ function resetVisualization() {
     document.getElementById('statStep').textContent = '0/' + executionSteps.length;
     document.querySelectorAll('.tree-node').forEach(function (n) { n.classList.remove('active', 'returning', 'completed'); });
     document.querySelectorAll('.edge').forEach(function (e) { e.classList.remove('active', 'return'); });
+    // Clear stale edge labels from DOM
+    document.querySelectorAll('.edge-label').forEach(function (lbl) { lbl.remove(); });
     document.getElementById('prevBtn').disabled = true;
     document.getElementById('nextBtn').disabled = executionSteps.length > 0 ? false : true;
     document.getElementById('stepBackBtn').disabled = true;
@@ -1045,18 +1204,6 @@ function importCode() {
         reader.readAsText(file);
     };
     input.click();
-}
-
-// ============================================================
-// HTML-safe escaping
-// ============================================================
-function escapeHtml(text) {
-    return String(text)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
 }
 
 // ============================================================
@@ -1397,9 +1544,26 @@ document.addEventListener('DOMContentLoaded', function () {
         if (e.target === this) closeConvertModal();
     });
 
+    // Advance stepper when user starts pasting in the import textarea
+    var convertInput = document.getElementById('convertResultInput');
+    if (convertInput) {
+        convertInput.addEventListener('focus', function () {
+            updateConvertStepper(3);
+        });
+    }
+
     // Close error on click outside
     document.getElementById('errorModal').addEventListener('click', function (e) {
         if (e.target === this) closeErrorModal();
+    });
+
+    // Close modals with Escape key
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            if (document.getElementById('helpModal').classList.contains('visible')) closeHelp();
+            else if (document.getElementById('convertModal').classList.contains('visible')) closeConvertModal();
+            else if (document.getElementById('errorModal').classList.contains('visible')) closeErrorModal();
+        }
     });
 
     // Zoom & Pan

@@ -135,7 +135,7 @@ def fn(n, src, dst, aux):
                         <li>Keep total recursive calls small (&le; 80) for a clear tree</li>
                         <li>Use <code>print()</code> freely &mdash; output appears in the console panel (toggle it on)</li>
                         <li><strong>Ctrl+Enter</strong> inside the editor runs the code</li>
-                        <li>The speed slider controls animation speed (left = faster)</li>
+                        <li>The speed slider controls animation speed (right = faster)</li>
                         <li>Only calls to <code>fn(...)</code> are traced &mdash; helper sub-functions won't appear in the tree</li>
                         <li>Use <strong>Export / Import</strong> links in the footer to save your work</li>
                     </ul>
@@ -154,30 +154,117 @@ def fn(n, src, dst, aux):
             </div>
             <div class="help-body">
 
-                <div class="convert-intro">
-                    <p>Have existing Python recursive code that doesn't work with this app? Use an AI assistant (ChatGPT, Claude, Gemini, etc.) to automatically convert it into the required format.</p>
-                    <button class="copy-prompt-btn" onclick="copyConvertPrompt()" id="copyPromptBtn">&#128203;&nbsp; Copy LLM Prompt to Clipboard</button>
-                    <p class="convert-hint">Paste the copied prompt into any AI chat, then append your code where it says <code>&lt;PASTE YOUR CODE HERE&gt;</code> at the end.</p>
+                <!-- Workflow Stepper -->
+                <div class="convert-stepper">
+                    <div class="stepper-step active" id="step1indicator">
+                        <div class="stepper-num">1</div>
+                        <div class="stepper-label">Copy Prompt</div>
+                    </div>
+                    <div class="stepper-line" id="stepperLine1"></div>
+                    <div class="stepper-step" id="step2indicator">
+                        <div class="stepper-num">2</div>
+                        <div class="stepper-label">Ask AI</div>
+                    </div>
+                    <div class="stepper-line" id="stepperLine2"></div>
+                    <div class="stepper-step" id="step3indicator">
+                        <div class="stepper-num">3</div>
+                        <div class="stepper-label">Import Result</div>
+                    </div>
                 </div>
 
-                <div class="help-section">
-                    <h3>What the AI will do</h3>
-                    <ol class="convert-rules-list">
-                        <li><strong>R1</strong> &mdash; Rename the function to exactly <code>fn</code></li>
-                        <li><strong>R2</strong> &mdash; Rewrite all recursive self-calls to use <code>fn(...)</code></li>
-                        <li><strong>R3</strong> &mdash; Move non-parameter variables (arrays, targets, grids) into <strong>Global Variables</strong></li>
-                        <li><strong>R4</strong> &mdash; Remove outer wrapper; promote inner recursive helper as <code>fn</code></li>
-                        <li><strong>R5</strong> &mdash; Remove all <code>self.</code> references</li>
-                        <li><strong>R6</strong> &mdash; Strip decorators (<code>@lru_cache</code> etc.) &mdash; they break tracing</li>
-                        <li><strong>R7</strong> &mdash; Use 4-space indentation only (no tabs)</li>
-                        <li><strong>R8</strong> &mdash; Keep total recursive calls &le; 80 for a readable tree</li>
-                        <li><strong>R9</strong> &mdash; <code>print()</code> is fine &mdash; output shows in the console panel</li>
-                    </ol>
+                <!-- Three Step Cards -->
+                <div class="convert-steps-grid">
+
+                    <!-- Step 1 -->
+                    <div class="convert-step-card" id="stepCard1">
+                        <div class="step-card-header">
+                            <span class="step-badge">1</span>
+                            <span class="step-card-title">Copy the conversion prompt</span>
+                        </div>
+                        <p class="step-card-desc">Click below to copy a pre-written prompt. It tells the AI exactly how to reformat your code for this app.</p>
+                        <button class="copy-prompt-btn" onclick="copyConvertPrompt()" id="copyPromptBtn">&#128203;&nbsp; Copy LLM Prompt to Clipboard</button>
+                    </div>
+
+                    <!-- Step 2 -->
+                    <div class="convert-step-card" id="stepCard2">
+                        <div class="step-card-header">
+                            <span class="step-badge">2</span>
+                            <span class="step-card-title">Paste into any AI assistant</span>
+                        </div>
+                        <p class="step-card-desc">Open <strong>ChatGPT</strong>, <strong>Claude</strong>, <strong>Gemini</strong>, or any AI chat. Paste the prompt, then add your Python code where it says <code>&lt;PASTE YOUR CODE HERE&gt;</code>.</p>
+                        <div class="step-card-hint">
+                            <span class="hint-icon">&#128161;</span>
+                            The AI will rename your function to <code>fn</code>, extract globals, remove decorators, and output three clean sections.
+                        </div>
+                    </div>
+
+                    <!-- Step 3 -->
+                    <div class="convert-step-card step-card-highlight" id="stepCard3">
+                        <div class="step-card-header">
+                            <span class="step-badge step-badge-green">3</span>
+                            <span class="step-card-title">Paste the AI's response &amp; import</span>
+                        </div>
+                        <p class="step-card-desc">Paste the AI's full response below. The parser auto-detects <strong>Global Variables</strong>, <strong>Recursive Function</strong>, and <strong>Function Call</strong> sections.</p>
+                        <textarea id="convertResultInput" class="convert-result-input" rows="10" placeholder="Paste the full AI response here...
+
+The parser looks for these sections:
+
+  Global Variables:
+  arr = [1, 2, 3]
+  result = []
+
+  Recursive Function:
+  def fn(asf):
+      ...
+
+  Function Call:
+  fn([])"></textarea>
+                        <div class="convert-import-actions">
+                            <button class="convert-import-btn" onclick="importConvertResult()">&#10548;&nbsp; Import into Editor</button>
+                            <button class="convert-clear-btn" onclick="clearConvertResult()">Clear</button>
+                        </div>
+                        <div id="convertImportStatus" class="convert-import-status"></div>
+                    </div>
+
                 </div>
 
-                <div class="help-section">
-                    <h3>Example A &mdash; Inner function pattern</h3>
-                    <p><strong>Original code:</strong></p>
+                <!-- Collapsible: Rules -->
+                <details class="convert-details">
+                    <summary class="convert-details-summary">
+                        <span class="details-icon">&#9432;</span>
+                        What the AI will do &mdash; 9 conversion rules
+                    </summary>
+                    <div class="convert-details-body">
+                        <ol class="convert-rules-list">
+                            <li><strong>R1</strong> &mdash; Rename the function to exactly <code>fn</code></li>
+                            <li><strong>R2</strong> &mdash; Rewrite all recursive self-calls to use <code>fn(...)</code></li>
+                            <li><strong>R3</strong> &mdash; Move non-parameter variables (arrays, targets, grids) into <strong>Global Variables</strong></li>
+                            <li><strong>R4</strong> &mdash; Remove outer wrapper; promote inner recursive helper as <code>fn</code></li>
+                            <li><strong>R5</strong> &mdash; Remove all <code>self.</code> references</li>
+                            <li><strong>R6</strong> &mdash; Strip decorators (<code>@lru_cache</code> etc.) &mdash; they break tracing</li>
+                            <li><strong>R7</strong> &mdash; Use 4-space indentation only (no tabs)</li>
+                            <li><strong>R8</strong> &mdash; Keep total recursive calls &le; 80 for a readable tree</li>
+                            <li><strong>R9</strong> &mdash; <code>print()</code> is fine &mdash; output shows in the console panel</li>
+                        </ol>
+                    </div>
+                </details>
+
+                <!-- Collapsible: Examples -->
+                <details class="convert-details">
+                    <summary class="convert-details-summary">
+                        <span class="details-icon">&#128218;</span>
+                        Before &amp; after examples (3)
+                    </summary>
+                    <div class="convert-details-body">
+
+                        <div class="convert-example-card">
+                            <div class="example-card-header">
+                                <h4>Example A &mdash; Inner function pattern</h4>
+                                <button class="load-example-btn" onclick="loadConvertExample('permutation_convert')">&#9654; Load into editor</button>
+                            </div>
+                            <div class="example-columns">
+                                <div class="example-col">
+                                    <span class="example-col-label">&#10060; Original</span>
 <pre class="help-code">def get_permutation(arr):
     result = []
     def permutation(asf):
@@ -191,15 +278,17 @@ def fn(n, src, dst, aux):
                 asf.pop()
     permutation([])
     return result</pre>
-                    <p><strong>After conversion:</strong></p>
-                    <div class="convert-output">
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Global Variables</span>
+                                </div>
+                                <div class="example-col">
+                                    <span class="example-col-label">&#9989; Converted</span>
+                                    <div class="convert-output">
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Global Variables</span>
 <pre>arr = [1, 2, 3]
 result = []</pre>
-                        </div>
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Recursive Function</span>
+                                        </div>
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Recursive Function</span>
 <pre>def fn(asf):
     if len(asf) == len(arr):
         result.append(asf[:])
@@ -209,17 +298,24 @@ result = []</pre>
             asf.append(el)
             fn(asf)
             asf.pop()</pre>
-                        </div>
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Function Call</span>
+                                        </div>
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Function Call</span>
 <pre>fn([])</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                <div class="help-section">
-                    <h3>Example B &mdash; Class method with memoization</h3>
-                    <p><strong>Original code:</strong></p>
+                        <div class="convert-example-card">
+                            <div class="example-card-header">
+                                <h4>Example B &mdash; Class method with memoization</h4>
+                                <button class="load-example-btn" onclick="loadConvertExample('lcs_convert')">&#9654; Load into editor</button>
+                            </div>
+                            <div class="example-columns">
+                                <div class="example-col">
+                                    <span class="example-col-label">&#10060; Original</span>
 <pre class="help-code">class Solution:
     def longestCommonSubsequence(self, text1, text2):
         from functools import lru_cache
@@ -231,32 +327,41 @@ result = []</pre>
                 return 1 + dp(i+1, j+1)
             return max(dp(i+1, j), dp(i, j+1))
         return dp(0, 0)</pre>
-                    <p><strong>After conversion:</strong></p>
-                    <div class="convert-output">
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Global Variables</span>
+                                </div>
+                                <div class="example-col">
+                                    <span class="example-col-label">&#9989; Converted</span>
+                                    <div class="convert-output">
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Global Variables</span>
 <pre>text1 = 'abcde'
 text2 = 'ace'</pre>
-                        </div>
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Recursive Function</span>
+                                        </div>
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Recursive Function</span>
 <pre>def fn(i, j):
     if i == len(text1) or j == len(text2):
         return 0
     if text1[i] == text2[j]:
         return 1 + fn(i+1, j+1)
     return max(fn(i+1, j), fn(i, j+1))</pre>
-                        </div>
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Function Call</span>
+                                        </div>
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Function Call</span>
 <pre>fn(0, 0)</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
 
-                <div class="help-section">
-                    <h3>Example C &mdash; Backtracking</h3>
-                    <p><strong>Original code:</strong></p>
+                        <div class="convert-example-card">
+                            <div class="example-card-header">
+                                <h4>Example C &mdash; Backtracking</h4>
+                                <button class="load-example-btn" onclick="loadConvertExample('subsets_convert')">&#9654; Load into editor</button>
+                            </div>
+                            <div class="example-columns">
+                                <div class="example-col">
+                                    <span class="example-col-label">&#10060; Original</span>
 <pre class="help-code">def subsets(nums):
     result = []
     def backtrack(start, current):
@@ -267,28 +372,35 @@ text2 = 'ace'</pre>
             current.pop()
     backtrack(0, [])
     return result</pre>
-                    <p><strong>After conversion:</strong></p>
-                    <div class="convert-output">
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Global Variables</span>
+                                </div>
+                                <div class="example-col">
+                                    <span class="example-col-label">&#9989; Converted</span>
+                                    <div class="convert-output">
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Global Variables</span>
 <pre>nums = [1, 2, 3]
 result = []</pre>
-                        </div>
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Recursive Function</span>
+                                        </div>
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Recursive Function</span>
 <pre>def fn(start, current):
     result.append(current[:])
     for i in range(start, len(nums)):
         current.append(nums[i])
         fn(i + 1, current)
         current.pop()</pre>
-                        </div>
-                        <div class="convert-output-block">
-                            <span class="convert-output-label">Function Call</span>
+                                        </div>
+                                        <div class="convert-output-block">
+                                            <span class="convert-output-label">Function Call</span>
 <pre>fn(0, [])</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
                     </div>
-                </div>
+                </details>
 
             </div>
         </div>
